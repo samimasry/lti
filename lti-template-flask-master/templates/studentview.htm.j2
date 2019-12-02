@@ -1,0 +1,21 @@
+{% extends 'base.htm.j2' %}
+{% block content %}
+
+<div>
+    <h1>Recorded videos for: {{ lis_person_name_full }} </h1>
+    <p> student id is: {{student_id}}</p>
+    <p> videoList is {{videoList}}</p>
+    <p> urls is {{urls}}</p>
+    
+    <p>user roles are: {{roles }} </p>
+    <br>
+    <h1>video list: </h1>
+    {% for x in videoList %}
+    <iframe width="1004" height="753" src= "{{x}}" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe><br/>
+    {% endfor %}
+
+    
+ 
+</div>
+
+{% endblock content %}

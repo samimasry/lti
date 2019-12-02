@@ -1,0 +1,18 @@
+{% extends 'base.htm.j2' %}
+{% block content %}
+
+<div>
+    <h1>Full name: {{ lis_person_name_full }} </h1>
+    
+    <p>user roles are: {{roles }} </p>
+    <br>
+    <h1>quiz list: </h1>
+    {% for x in quizList %}
+    <a href="{{ url_for('viewquiz', quiz_id=x) }}"> <br>quiz: {{x}}</a><br/>
+    {% endfor %}
+
+    
+ 
+</div>
+
+{% endblock content %}

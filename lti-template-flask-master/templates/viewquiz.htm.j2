@@ -1,0 +1,18 @@
+{% extends 'base.htm.j2' %}
+{% block content %}
+
+<div>
+
+    
+
+    <h1>video list: </h1>
+    {% for x in videoList %}
+    <a href="{{ url_for('viewvideo', video_id=x) }}"> <img alt="Qries" src={{ url_for('static', filename='img/play-button.webp') }}
+         width=150" height="70"> <br>{{x}}</a><br/>
+    {% endfor %}
+
+    
+ 
+</div>
+
+{% endblock content %}
