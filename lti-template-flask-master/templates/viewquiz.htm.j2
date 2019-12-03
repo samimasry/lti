@@ -2,13 +2,12 @@
 {% block content %}
 
 <div>
-
     
 
     <h1>video list: </h1>
-    {% for x in videoList %}
-    <a href="{{ url_for('viewvideo', video_id=x) }}"> <img alt="Qries" src={{ url_for('static', filename='img/play-button.webp') }}
-         width=150" height="70"> <br>{{x}}</a><br/>
+    {% for x in videoListIndices %}
+    <a href="{{ url_for('viewvideoandflags', teacher_video_id=x+1) }}"> <img alt="Qries" src={{ url_for('static', filename='img/play-button.webp') }}
+         width=150" height="70"> <br>{{x+1}}</a><br/>
     {% endfor %}
 
     

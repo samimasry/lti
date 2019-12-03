@@ -2,12 +2,8 @@
 {% block content %}
 
 <div>
-    <h1>Full name: {{ lis_person_name_full }} </h1>
-    
-    <p>user roles are: {{roles }} </p>
-    <br>
-    <h1>quiz list: </h1>
-    {% for x in quizList %}
+    <h1>Quizzes withing this course </h1>
+    {% for x in quizListIndices %}
     <a href="{{ url_for('viewquiz', quiz_id=x) }}"> <br>quiz: {{x}}</a><br/>
     {% endfor %}
 

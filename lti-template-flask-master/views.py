@@ -4,6 +4,10 @@ import settings
 import logging
 import json
 import requests
+#
+import boto3
+from botocore.client import Config
+#
 from logging.handlers import RotatingFileHandler
 
 app = Flask(__name__)
@@ -77,7 +81,7 @@ def launch(lti=lti):
 
     if "Learner" in session['roles']:
     	#launch student
-    	return render_template('launchstudent.htm.j2', lis_person_name_full=session['lis_person_name_full'], roles=session['roles'], student_id= session['custom_canvas_user_id'])
+    	return render_template('launchstudent.htm.j2', lis_person_name_full=session['lis_person_name_full'], student_id= session['custom_canvas_user_id'])
     
     if "Instructor" in session['roles']:
     	#launch teacher
@@ -89,15 +93,15 @@ def studentview(student_id):
 	student_id = student_id
 
 
-	urls= requests.get(url = "http://ec2-34-230-52-124.compute-1.amazonaws.com/ph2/videos/viewMyVideos?canvas_id=34")
+	urls= requests.get(url = "http://ec2-34-230-52-124.compute-1.amazonaws.com/ph2/videos/viewMyVideos?canvas_id="+str(student_id))
 	urls = urls.json()
-	urls = urls['file_location']
-	videoList = []
-
-	for url in urls:
-		videoList.append(url['file_location'].encode('ascii','ignore'))
-
-	 #get video list based on the studentid
+	numberOfUrls = len(urls['file_location'])
+	#videoList = []
+	 
+	videoListIndices = range(0,numberOfUrls)
+	session['student_video_list_urls'] =[]
+	for x in range(0,numberOfUrls):
+		session['student_video_list_urls'].append(urls['file_location'][x][u'file_location'])
 
 
 
@@ -106,7 +110,7 @@ def studentview(student_id):
 	#app.logger.info()
 
 
-	return render_template('studentview.htm.j2',urls = urls,  lis_person_name_full=session['lis_person_name_full'], videoList = videoList, roles=session['roles'], student_id = student_id)
+	return render_template('studentview.htm.j2',urls = session['student_video_list_urls'], lis_person_name_full=session['lis_person_name_full'], videoListIndices = videoListIndices, numberOfUrls  = numberOfUrls)
 
 
 @app.route('/teacherview/<int:course_id>', methods=['POST', 'GET'])
@@ -114,7 +118,16 @@ def teacherview(course_id):
 
 	course_id = course_id
 
-	quizList = range(11,20) #get quiz list based on the course id
+	quizzes = requests.get(url = "http://ec2-34-230-52-124.compute-1.amazonaws.com/ph2/courses/needCourseObjects?course_id=" + str(course_id))
+	quizzes = quizzes.json()
+
+	numberOfQuizzes = len(quizzes['object'])
+	quizListIndices = range(1,numberOfQuizzes+1)
+	session['quiz_list_based_on_course'] =[]
+	for x in range(0,numberOfQuizzes):
+		session['quiz_list_based_on_course'].append(quizzes['object'][x]['object'])
+	#quizList = range(11,20) #get quiz list based on the course id
+
 
 
 
@@ -122,35 +135,107 @@ def teacherview(course_id):
 	app.logger.info(json.dumps(request.form, indent=2))
 
 
-	return render_template('teacher_view_all_quizzes_within_course.htm.j2', lis_person_name_full=session['lis_person_name_full'], quizList = quizList, roles=session['roles'])
+	return render_template('teacher_view_all_quizzes_within_course.htm.j2',quizzes = session['quiz_list_based_on_course'], numberOfQuizzes = numberOfQuizzes, quizListIndices = quizListIndices)
 
 
 @app.route('/viewquiz/<int:quiz_id>', methods=['POST', 'GET'])
 #@lti(error=error, request='session', role='any', app=app)
 def viewquiz(quiz_id):
 	quiz_id=quiz_id
+	urls = requests.get(url = "http://ec2-34-230-52-124.compute-1.amazonaws.com/ph2/videos/viewMyObjectVideos?object_id="+str(quiz_id))
+	urls = urls.json()
+	numberOfUrls = len(urls['file_location'])
+	#videoList = []
+	 
+	videoListIndices = range(0,numberOfUrls)
+	session['teacher_video_list_urls'] =[]
+	for x in range(0,numberOfUrls):
+		session['teacher_video_list_urls'].append(urls['file_location'][x][u'file_location'])
 	#view all videos with this quiz id
-	videoList = range(1,10)
+	#videoList = range(1,10)
 
 
 
 
 
-	return render_template('viewquiz.htm.j2', videoList = videoList)
+	return render_template('viewquiz.htm.j2', urls = session['teacher_video_list_urls'],videoListIndices = videoListIndices, numberOfUrls  = numberOfUrls)
 
 #video play page
-@app.route('/viewvideo/<string:video_id>', methods=['POST', 'GET'])
+@app.route('/viewvideo/<int:video_id>', methods=['POST', 'GET'])
 #@lti(error=error, request='session', role='any', app=app)
 def viewvideo(video_id):
 	video_id=video_id
+	#below keys and secret should not be hardcode
+	s3 = boto3.client('s3', config=Config(signature_version='s3v4') ,
+		aws_access_key_id = "AKIAXRDTGP6FG7XNDPEZ",
+		aws_secret_access_key = "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",
+		)
+
+	# Generate the URL to get 'key-name' from 'bucket-name'
+	# URL expires in 604800 seconds (seven days)
+	url = s3.generate_presigned_url(
+    ClientMethod='get_object',
+    Params={
+        'Bucket': 'rekogtest-akane',
+        'Key': session['student_video_list_urls'][video_id-1].replace("https://rekogtest-akane.s3.amazonaws.com/","")
+    },
+    ExpiresIn=604800
+)
 
 
 
 
 
-	return render_template('viewvideo.htm.j2', video_id=video_id)
+
+	return render_template('viewvideo.htm.j2', key = session['student_video_list_urls'][video_id-1].replace("https://rekogtest-akane.s3.amazonaws.com/",""), url = url)
 
 
+#video teacher page
+@app.route('/viewvideoandflags/<int:teacher_video_id>', methods=['POST', 'GET'])
+#@lti(error=error, request='session', role='any', app=app)
+def viewvideoandflags(teacher_video_id):
+	teacher_video_id=teacher_video_id
+	#below keys and secret should not be hardcoded
+	s3 = boto3.client('s3', config=Config(signature_version='s3v4') ,
+		aws_access_key_id = "AKIAXRDTGP6FG7XNDPEZ",
+		aws_secret_access_key = "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",
+		)
+
+	# Generate the URL to get 'key-name' from 'bucket-name'
+	# URL expires in 604800 seconds (seven days)
+	url = s3.generate_presigned_url(
+    ClientMethod='get_object',
+    Params={
+        'Bucket': 'rekogtest-akane',
+        'Key': session['teacher_video_list_urls'][teacher_video_id-1].replace("https://rekogtest-akane.s3.amazonaws.com/","")
+    },
+    ExpiresIn=604800
+)
+	#########################################################################################
+	#Note: add flags + logged sites here
+	s3 = boto3.client('s3', config=Config(signature_version='s3v4') ,
+		aws_access_key_id = "AKIAXRDTGP6FG7XNDPEZ",
+		aws_secret_access_key = "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",
+		)
+
+	# Generate the URL to get 'key-name' from 'bucket-name'
+	# URL expires in 604800 seconds (seven days)
+	txtUrl = s3.generate_presigned_url(
+    ClientMethod='get_object',
+    Params={
+        'Bucket': 'rekogtest-akane',
+        'Key': '2019-12-2+10%3A18%3A53.txt'
+    },
+    ExpiresIn=604800
+)
+
+
+
+
+
+
+
+	return render_template('viewvideoandflags.htm.j2', key = session['teacher_video_list_urls'][teacher_video_id-1].replace("https://rekogtest-akane.s3.amazonaws.com/",""), url = url, txtUrl = txtUrl)
 # Home page
 @app.route('/', methods=['GET'])
 def index(lti=lti):
